@@ -151,3 +151,31 @@ const port = process.env.PORT || 9001;
 app.listen(port);
 console.log('Started on port ' + port);
 ```
+The above example could be further modified to use scope based attribute customizer along with [predix-fast-token](https://github.com/PredixDev/predix-fast-token) as an expressjs middleware
+
+```javascript
+// Ensure Authorization header has a bearer token
+app.all('*', bearerToken(), function(req, res, next) {
+    console.log('Req Headers', req.headers);
+    if(req.token) {
+        predixFastToken.verify(req.token, trusted_issuers).then((decoded) => {
+            // send decoded scope to acs for evaluation
+            acs.isAuthorized(req, decoded.user_name, decoded.scope).then((result) => {
+                console.log('Access is permitted');
+                req.decoded = decoded;
+                console.log('Looks good');
+                next();
+            }).catch((err) => {
+                console.log('Nope', err);
+                res.status(403).send('Unauthorized');
+            });
+        }).catch((err) => {
+            console.log('Nope', err);
+            res.status(403).send('Unauthorized');
+        });
+    } else {
+        console.log('Nope, no token');
+        res.status(401).send('Authentication Required');
+    }
+});
+```
